@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="Listful.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <x:Double x:Key="ContentDialogMaxWidth">560</x:Double>
+
+            <!-- A row's text: no box, no focus underline, so the outline reads as text (upstream's
+                 borderless NSTextField). Placeholder and strikethrough are drawn by the row. -->
+            <Style x:Key="RowTextBox" TargetType="TextBox">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0,2,0,2" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="IsSpellCheckEnabled" Value="True" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Grid Background="Transparent">
+                                <ScrollViewer x:Name="ContentElement"
+                                    Padding="{TemplateBinding Padding}"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    HorizontalScrollMode="Disabled" VerticalScrollMode="Disabled"
+                                    HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
+                                    ZoomMode="Disabled" IsTabStop="False"
+                                    AutomationProperties.AccessibilityView="Raw" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="SecondaryText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
