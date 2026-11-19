@@ -271,7 +271,7 @@ internal static class Dialogs
     // MARK: - Settings
 
     /// <summary>Upstream's Settings window, as a dialog (Ctrl+,).</summary>
-    public static async Task ShowSettings(LibraryModel library, Window owner, Func<Task> chooseFolder)
+    public static async Task ShowSettings(LibraryModel library, Services.UpdaterService updater, Func<Task> chooseFolder)
     {
         var preferences = library.Preferences;
         var panel = new StackPanel { Spacing = 16, MinWidth = 420 };
@@ -321,6 +321,16 @@ internal static class Dialogs
         buttons.Children.Add(choose);
         folder.Children.Add(buttons);
         panel.Children.Add(folder);
+
+        if (updater.IsAvailable)
+        {
+            var updates = new StackPanel { Spacing = 4 };
+            updates.Children.Add(Header("Updates"));
+            var automatic = new CheckBox { Content = "Automatically check for updates", IsChecked = updater.AutomaticallyChecks };
+            automatic.Click += (_, _) => updater.AutomaticallyChecks = automatic.IsChecked == true;
+            updates.Children.Add(automatic);
+            panel.Children.Add(updates);
+        }
 
         var dialog = new ContentDialog
         {

@@ -36,6 +36,7 @@ public sealed partial class MainWindow : Window
     private ToggleMenuFlyoutItem? showDecruftedItem;
     private ToggleMenuFlyoutItem? showSidebarItem;
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromMinutes(1) };
+    private readonly Services.UpdaterService updater;
     private DateTime today = DateTime.Today;
     private CancellationTokenSource? copiesWait;
 
@@ -53,6 +54,9 @@ public sealed partial class MainWindow : Window
         }
 
         library = new LibraryModel(preferences);
+        updater = new Services.UpdaterService(preferences);
+        // The daily check offers what it finds (upstream: Sparkle's scheduled check).
+        updater.UpdateFound += async () => await CheckForUpdates();
         sidebar = new SidebarView(library, this);
 
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -96,6 +100,7 @@ public sealed partial class MainWindow : Window
             sidebar.Render();
             DocumentChanged();
             ShowError();
+            updater.Start(DispatcherQueue);
             if (!library.HasChosenFolder) await ChooseFolder(firstRun: true);
         };
 
@@ -401,7 +406,17 @@ public sealed partial class MainWindow : Window
         library.SwitchFolder(chosen);
     }
 
-    private async Task ShowSettings() => await Dialogs.ShowSettings(library, this, () => ChooseFolder(firstRun: false));
+    private async Task ShowSettings() => await Dialogs.ShowSettings(library, updater, () => ChooseFolder(firstRun: false));
+
+    private bool showingUpdate;
+
+    private async Task CheckForUpdates()
+    {
+        if (showingUpdate) return;
+        showingUpdate = true;
+        await Dialogs.Show(new UpdateDialog(updater, () => library.Document?.SaveNow()));
+        showingUpdate = false;
+    }
 
     /// <summary>Runs a command on the selected rows if there are any, otherwise on the current task.</summary>
     private void OnSelectionOrFocused(Action<TaskDocument> selection, Action<TaskDocument, Guid> focused)
@@ -549,6 +564,7 @@ public sealed partial class MainWindow : Window
 
         var help = new MenuBarItem { Title = "Help" };
         help.Items.Add(MenuItem("Keyboard Shortcuts", async () => await ShowShortcuts()));
+        help.Items.Add(MenuItem("Check for Updates…", async () => await CheckForUpdates()));
         help.Items.Add(MenuItem("About Listful", async () => await Dialogs.ShowAbout()));
         bar.Items.Add(help);
         return bar;

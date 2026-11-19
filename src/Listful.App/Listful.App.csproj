@@ -18,15 +18,18 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- Release builds carry the .NET runtime too, so a downloaded zip runs without installing .NET. -->
     <SelfContained Condition="'$(Configuration)' == 'Release'">true</SelfContained>
-    <!-- Upstream's VERSION. A tag build passes its own (-p:Version=…). -->
-    <Version>0.6</Version>
+    <!-- Upstream's VERSION, as major.minor.patch (Velopack wants SemVer). A tag build passes its own (-p:Version=…). -->
+    <Version>0.6.0</Version>
     <Product>Listful</Product>
     <Company>Chris Pinnock</Company>
     <Copyright>Copyright © 2026 Chris Pinnock</Copyright>
+    <!-- Program.cs is the entry point, so Velopack's install and update hooks run first. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Listful.Core\Listful.Core.csproj" />

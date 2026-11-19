@@ -27,6 +27,9 @@ dotnet test --project tests/Listful.Core.Tests --no-build --filter-class "*.Mark
 src\Listful.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Listful.exe
 ./scripts/make-icon.ps1                         # regenerate Assets\Listful.ico/.png from upstream's spec/icon.png
 ./scripts/upstream-changes.ps1                  # list upstream commits not yet ported
+dotnet build src/Listful.App/Listful.App.csproj -c Release -p:Platform=x64   # the runnable Release output (self-contained)
+./scripts/pack.ps1 -BuildDir srcistful.appindrelease
+et10.0-windows10.0.22621.0win-x64 -rid win-x64 -version 0.6.0 -signparams (get-signparams (get-signingcertificate))   # after `. ./scripts/signing.ps1`: signed setup, portable zip and update feed in dist\n./scripts/release.ps1 -tag v0.6.0               # sign, pack and draft a tag's ci build (docs/releasing.md)
 ```
 
 Package versions are pinned centrally in `Directory.Packages.props`, and warnings are errors. Tests
@@ -125,8 +128,21 @@ drag; use absolute `mouse_event` moves. `LISTFUL_TRACE=<file>` turns on `Service
   `com.chrispinnock.listful.tasks`.
 - Copies due after a new day are made once the computer is in use (`GetLastInputInfo`), checked
   each minute; window activation makes them straight away. There's no separate wake handler.
-- Not yet: updates (upstream uses Sparkle; signet-windows uses Velopack), release packaging, the
-  iOS-only features.
+- Updates and packaging are Velopack, as in signet-windows (upstream: Sparkle and a notarised
+  DMG). `Program.cs` replaces the generated `Main` (`DISABLE_XAML_GENERATED_MAIN`) so
+  `VelopackApp` runs first. `Services/UpdaterService` checks the GitHub releases of
+  `drchrispinnock/listful-win` daily (Settings › Updates, upstream's "Automatically check for
+  updates"); `UpdateDialog` (Help › Check for Updates…) offers Download and Install, then Restart
+  to Update, saving the open list first. Nothing downloads unasked: Velopack has no EdDSA check
+  like Sparkle's. Only an installed copy (Setup or Portable) updates; `LISTFUL_UPDATE_SOURCE`
+  points it at a local `vpk pack` folder for testing. The Velopack app id is `ListfulApp`, not
+  `Listful`: it installs into `%LOCALAPPDATA%<app id>`, and uninstalling deletes that folder, which
+  must not be the preferences folder `%LOCALAPPDATA%istful`. version is `<version>` in
+  `listful.app.csproj`, semver (upstream's `0.6` is `0.6.0`). release builds are self-contained;
+  `dotnet publish` drops the `.pri`/`.xbf` files (signet-windows), so pack the build output.
+  `.github/workflows/release.yml` builds and tests a tag; `scripts/release.ps1` signs, packs and
+  drafts the release here (docs/releasing.md).
+- not yet: the ios-only features.
 
 ## Syncing with upstream
 

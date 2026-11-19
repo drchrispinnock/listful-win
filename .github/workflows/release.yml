@@ -1,0 +1,89 @@
+# Builds the Windows release when a version tag is pushed (git tag v0.6.0; git push origin v0.6.0),
+# or by hand from the Actions tab (Run workflow) to try a build without releasing it.
+#
+# A tag build tests and builds the tagged commit for each architecture (win-x64, win-arm64) and
+# uploads the unsigned build as an artifact (Listful-build-x64, Listful-build-ARM64). The
+# code-signing key is in Certum's SimplySign and needs the maintainer's phone, so the release is
+# finished on their PC: scripts/release.ps1 downloads these builds, signs and packs them with
+# Velopack and makes a DRAFT GitHub release (docs/RELEASING.md). Nothing is public, and no
+# installed copy is offered the update, until the draft is published.
+#
+# A manual run packs unsigned installers (artifacts Listful-x64, Listful-ARM64) to try; no release
+# is made.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, ARM64]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          # v0.6.0 → 0.6.0 on a tag; a manual run builds the version in the project file.
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        if: matrix.platform == 'x64'
+        run: dotnet test --project tests/Listful.Core.Tests
+
+      - name: Build
+        id: build
+        shell: pwsh
+        run: |
+          $buildArgs = @('build', 'src/Listful.App/Listful.App.csproj', '-c', 'Release', "-p:Platform=${{ matrix.platform }}")
+          if ('${{ steps.version.outputs.version }}') { $buildArgs += "-p:Version=${{ steps.version.outputs.version }}" }
+          dotnet @buildArgs
+          # The runnable Release output (`dotnet publish` drops Listful.pri and the .xbf files, see CLAUDE.md).
+          $rid = if ('${{ matrix.platform }}' -eq 'ARM64') { 'win-arm64' } else { 'win-x64' }
+          "rid=$rid" >> $env:GITHUB_OUTPUT
+          "dir=src/Listful.App/bin/${{ matrix.platform }}/Release/net10.0-windows10.0.22621.0/$rid" >> $env:GITHUB_OUTPUT
+
+      # A tag build: the unsigned build for scripts/release.ps1, stamped with the commit so the
+      # script can check it is the tag's.
+      - name: Stamp
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: Set-Content -NoNewline -Path '${{ steps.build.outputs.dir }}/BUILD_COMMIT.txt' -Value $env:GITHUB_SHA
+
+      - uses: actions/upload-artifact@v7
+        if: github.ref_type == 'tag'
+        with:
+          name: Listful-build-${{ matrix.platform }}
+          path: ${{ steps.build.outputs.dir }}/
+          if-no-files-found: error
+
+      # A manual run: unsigned installers to try, versioned like 0.6.1-ci.12, with no delta (an
+      # x.y.z-ci.N sorts below a published x.y.z, which vpk would refuse to pack after).
+      - name: Package (unsigned)
+        if: github.ref_type != 'tag'
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content src/Listful.App/Listful.App.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          ./scripts/pack.ps1 -BuildDir '${{ steps.build.outputs.dir }}' -Rid '${{ steps.build.outputs.rid }}' -Version "$version-ci.${{ github.run_number }}"
+
+      - uses: actions/upload-artifact@v7
+        if: github.ref_type != 'tag'
+        with:
+          name: Listful-${{ matrix.platform }}
+          path: dist/*
