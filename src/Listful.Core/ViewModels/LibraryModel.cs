@@ -101,8 +101,9 @@ public sealed class LibraryModel : IDisposable
     private List<string> watchedFolders = [];
     private List<string> linkedFolderPaths;
     private CancellationTokenSource? titlesTask;
-    private bool isMakingCopies;
+    private Task? copiesRun;
     private bool needsCopiesAgain;
+    private readonly Lock copiesLock = new();
     private readonly bool watch;
 
     /// <summary>The culture for copies' titles; the current one unless a test sets it.</summary>
@@ -720,15 +721,37 @@ public sealed class LibraryModel : IDisposable
     /// Makes any repeating checklist copies that are due, off the UI
     /// thread, and merges away duplicate copies. If the open list was the previous copy, the new
     /// one is opened in its place. Overlapping requests run once more afterwards.
+    /// Windows difference: an overlapping request's task completes after that run, so awaiting
+    /// it means the copies are made (upstream's returns at once; the tests race without it).
     /// </summary>
-    public async Task MakeDueCopies()
+    public Task MakeDueCopies()
     {
-        if (isMakingCopies)
+        lock (copiesLock)
         {
-            needsCopiesAgain = true;
-            return;
+            if (copiesRun is { IsCompleted: false })
+            {
+                needsCopiesAgain = true;
+                return copiesRun;
+            }
+            return copiesRun = MakeDueCopiesUntilSettled();
         }
-        isMakingCopies = true;
+    }
+
+    private async Task MakeDueCopiesUntilSettled()
+    {
+        while (true)
+        {
+            await MakeDueCopiesOnce();
+            lock (copiesLock)
+            {
+                if (!needsCopiesAgain) return;
+                needsCopiesAgain = false;
+            }
+        }
+    }
+
+    private async Task MakeDueCopiesOnce()
+    {
         // Save first, so tasks being carried over include the latest edits.
         Document?.SaveNow();
         var templates = templateLibrary;
@@ -744,7 +767,6 @@ public sealed class LibraryModel : IDisposable
             var merged = RepeatingChecklists.MergeDuplicates(templates, lists, open);
             return (made, merged);
         });
-        isMakingCopies = false;
         // The folder may have changed meanwhile; these results are for the old one.
         if (templates.FolderPath == templateLibrary.FolderPath)
         {
@@ -755,11 +777,6 @@ public sealed class LibraryModel : IDisposable
                 CollapsedTemplates.Remove(moved.Template);
                 Selection = AllLists.FirstOrDefault(p => PathUtility.SamePath(p, moved.Copy)) ?? moved.Copy;
             }
-        }
-        if (needsCopiesAgain)
-        {
-            needsCopiesAgain = false;
-            await MakeDueCopies();
         }
     }
 }

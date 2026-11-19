@@ -117,6 +117,9 @@ drag; use absolute `mouse_event` moves. `LISTFUL_TRACE=<file>` turns on `Service
   the sidebar, a resizable sidebar.
 - Rows (`TaskRowView`) are TextBoxes with a bare template (`RowTextBox` in `App.xaml`). TextBox
   can't strike text through, so a done row shows an overlay TextBlock while it isn't being edited.
+  TextBox draws its caret in the inverse of its `BorderElement`'s background, alpha included, so
+  the template keeps a `BorderElement` that turns solid `OutlineBackgroundBrush` while focused (the
+  outline pane is that same solid colour, not Mica); a missing or transparent one hides the caret.
   `OutlineView.Render` reuses row views by id and inserts or removes only the rows that changed:
   taking a focused field out of the tree sends focus to the menu bar. Focus requests are applied
   synchronously (after `UpdateLayout` for a new row) so keys typed after Return land in the new row.

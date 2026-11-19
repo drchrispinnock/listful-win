@@ -75,7 +75,7 @@ public sealed partial class MainWindow : Window
         var detailBackground = new Border
         {
             Child = detail,
-            Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"],
+            Background = (Brush)Application.Current.Resources["OutlineBackgroundBrush"],
             BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
             BorderThickness = new Thickness(1, 1, 0, 0),
             CornerRadius = new CornerRadius(8, 0, 0, 0),

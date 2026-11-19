@@ -11,6 +11,10 @@
 
             <x:Double x:Key="ContentDialogMaxWidth">560</x:Double>
 
+            <!-- The outline pane: solid (white in light mode, as upstream's), so a row being
+                 edited can match it exactly; see BorderElement in RowTextBox. -->
+            <StaticResource x:Key="OutlineBackgroundBrush" ResourceKey="SolidBackgroundFillColorQuarternaryBrush" />
+
             <!-- A row's text: no box, no focus underline, so the outline reads as text (upstream's
                  borderless NSTextField). Placeholder and strikethrough are drawn by the row. -->
             <Style x:Key="RowTextBox" TargetType="TextBox">
@@ -26,6 +30,24 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="TextBox">
                             <Grid Background="Transparent">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver" />
+                                        <VisualState x:Name="Disabled" />
+                                        <VisualState x:Name="Focused">
+                                            <VisualState.Setters>
+                                                <Setter Target="BorderElement.Background" Value="{ThemeResource OutlineBackgroundBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <!-- TextBox draws its caret in the inverse of BorderElement's
+                                     background, alpha included: with none, or a transparent one,
+                                     the caret is invisible. While editing, the row takes the
+                                     outline's own solid colour (so it looks the same); otherwise
+                                     it stays clear so the row selection behind it shows. -->
+                                <Border x:Name="BorderElement" Background="Transparent" />
                                 <ScrollViewer x:Name="ContentElement"
                                     Padding="{TemplateBinding Padding}"
                                     Foreground="{TemplateBinding Foreground}"
